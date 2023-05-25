@@ -4,7 +4,7 @@ This is still a very rudimentary prototype, really just a proof of concept.
 
 You will need to set up an account with openai and create an api key.
 
-Then in the src directory create a new file called .apiKeys.ts (make sure not to commit this file or share your
+Then in the src directory create a new file called .apikeys.ts (make sure not to commit this file or share your
 api key with anyone else)
 
 In this file add
