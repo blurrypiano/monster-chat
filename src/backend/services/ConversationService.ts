@@ -1,6 +1,7 @@
-import { GptMessage, postChatGpt } from "../../Api";
+import { postChatGpt } from "../../Api";
 import GameContext from "../../frontend/engine/GameContext";
-import { npcSharedPrompt, worldHistory, worldKnowledge } from "../data/npcs/NpcData";
+import { GptMessage } from "../../frontend/libs/gpt-agents/GptMessage";
+import { npcSharedPrompt, worldHistory, worldKnowledge } from "../../data/npcs/NpcData";
 import IConversationService, { IConversationModel, IHistory, IMessageModel, ResponseActionType } from "../interfaces/IConversationService";
 import INpcRepo, { INpcModel } from "../interfaces/INpcRepo";
 import MessageModel from "../models/MessageModel";
@@ -22,10 +23,10 @@ export default class ConversationService implements IConversationService {
   // with the constructor
   private readonly _npcRepo: INpcRepo = new NpcRepo();
 
-  public async startConversation(npcId: number, envDescription: string, gc: GameContext): Promise<IConversationModel> {
-    const npc = await this._npcRepo.getById(npcId);
+  public async startConversation(uid: string, envDescription: string, gc: GameContext): Promise<IConversationModel> {
+    const npc = await this._npcRepo.getById(uid);
     const conversation = npc.conversation;
-    if (conversation.isActive) throw new Error(`Conversation with ${npcId} is already active`);
+    if (conversation.isActive) throw new Error(`Conversation with ${uid} is already active`);
 
     // todo, post to chatgpt and get back reponse
     const promptMsgs = this.getConversationStartPrompt(npc, envDescription, gc);
@@ -48,7 +49,7 @@ export default class ConversationService implements IConversationService {
     return updatedConversation;
   }
 
-  public async getLocation(npcId: number, options: string[]): Promise<string | null> {
+  public async getLocation(npcId: string, options: string[]): Promise<string | null> {
     const npc = await this._npcRepo.getById(npcId);
     const conversation = npc.conversation;
     if (!conversation.isActive) throw new Error(`Conversation with ${npcId} is not active`);
@@ -69,10 +70,10 @@ export default class ConversationService implements IConversationService {
     return options[value];
   }
 
-  public async sendReply(npcId: number, replyText: string): Promise<IConversationModel> {
-    const npc = await this._npcRepo.getById(npcId);
+  public async sendReply(uid: string, replyText: string): Promise<IConversationModel> {
+    const npc = await this._npcRepo.getById(uid);
     const conversation = npc.conversation;
-    if (!conversation.isActive) throw new Error(`Conversation with ${npcId} is not active`);
+    if (!conversation.isActive) throw new Error(`Conversation with ${uid} is not active`);
     const lastId = conversation.messages[conversation.messages.length - 1].id;
 
     const [validation, action] = await Promise.all([
@@ -120,10 +121,10 @@ export default class ConversationService implements IConversationService {
     return updatedConversation;
   }
 
-  public async endConversation(npcId: number, endConversationText: string): Promise<IConversationModel> {
-    const npc = await this._npcRepo.getById(npcId);
+  public async endConversation(uid: string, endConversationText: string): Promise<IConversationModel> {
+    const npc = await this._npcRepo.getById(uid);
     const conversation = npc.conversation;
-    if (!conversation.isActive) throw new Error(`There is no active conversation with ${npcId}`);
+    if (!conversation.isActive) throw new Error(`There is no active conversation with ${uid}`);
 
     // summarize conversation
     const summary = await this.summarizeConversation(conversation, endConversationText);

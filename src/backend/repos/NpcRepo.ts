@@ -1,23 +1,21 @@
-import npcData from "../data/npcs/NpcData";
+import npcData from "../../data/npcs/NpcData";
 import INpcRepo, { INpcModel } from "../interfaces/INpcRepo";
 
 export default class NpcRepo implements INpcRepo {
 
-  public async getById(id: number): Promise<INpcModel> {
-    const index = this.getIndexOf(id);
-    return npcData[index]!;
+  public async getById(npcId: string): Promise<INpcModel> {
+    return this.getNpc(npcId);
   }
 
   public async update(updated: INpcModel): Promise<INpcModel> {
-    const index = this.getIndexOf(updated.id);
-    if (index < 0) throw new Error(`NpcRepo could not find model with id ${updated.id}`);
-    npcData[index] = updated;
+    this.getNpc(updated.npcId);
+    npcData.set(updated.npcId, updated);
     return updated;
   }
 
-  private getIndexOf(npcId: number): number {
-    const index = npcData.findIndex(npc => npc?.id === npcId);
-    if (index < 0) throw new Error(`NpcRepo could not find model with id ${npcId}`);
-    return index;
+  private getNpc(npcId: string): INpcModel {
+    const npc = npcData.get(npcId)
+    if (!npc) throw new Error(`NpcRepo could not find model with id ${npcId}`);
+    return npc;
   }
 }

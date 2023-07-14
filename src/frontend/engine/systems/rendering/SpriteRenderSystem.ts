@@ -12,10 +12,11 @@ export default class SpriteRenderSystem {
     const ents: [number, [CSprite, CTransform]][] = Array.from(ecs.getEntsWith(CSprite, CTransform));
 
     // need to sort for rendering to work properly
-    ents.sort((a, b) => a[1][1].translation.y - b[1][1].translation.y);
+    ents.sort((a, b) => a[1][0].gridPos.y - b[1][0].gridPos.y);
 
     for (const [eid, [sprite, transform]] of ents) {
-      const pos = gc.viewTransform.mulVec(new Vec3(transform.translation.x, transform.translation.y, 1));
+      const spriteWorldPos = sprite.worldPosition.add(transform.translation);
+      const pos = gc.viewTransform.mulVec(new Vec3(spriteWorldPos.x, spriteWorldPos.y, 1));
       const img = sprite.getImage();
       if (!img) continue;
       const imgCrop = sprite.getImgCrop();
@@ -30,7 +31,7 @@ export default class SpriteRenderSystem {
           img, imgCrop[0], imgCrop[1], imgCrop[2], imgCrop[3],
           /* actual left, top, width and heigth*/
           pos.x - borderSize,
-          pos.y - 24 - borderSize, // offset by -24 to move feet to almost the bottom of tile
+          pos.y - sprite.height - borderSize,
           sprite.width + 2 * borderSize,
           sprite.height + 2 * borderSize,
         );
@@ -45,7 +46,7 @@ export default class SpriteRenderSystem {
         imgCrop[0], imgCrop[1], imgCrop[2], imgCrop[3],
         /* actual left, top, width and heigth*/
         pos.x,
-        pos.y - 24, // offset by -24 to move feet to almost the bottom of tile (need to add offset to the sprite?)
+        pos.y - sprite.height, // offset by sprite height since world position is bottom left corner of tile
         sprite.width,
         sprite.height,
       );

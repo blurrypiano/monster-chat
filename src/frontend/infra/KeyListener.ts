@@ -31,7 +31,7 @@ export default class KeyListener {
   }
 
   /**
-   * 
+   * The last key down that is still pressed
    * @param keys Optional. If not provided, all keys are checked
    * @returns The last key that was pressed
    */

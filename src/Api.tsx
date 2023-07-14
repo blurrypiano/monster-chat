@@ -1,6 +1,7 @@
 import axios from 'axios';
 import useSWR from 'swr'
 import { CHATGPT_API_KEY } from './.apikeys'
+import { GptMessage } from './frontend/libs/gpt-agents/GptMessage';
 
 const apiKey = CHATGPT_API_KEY;
 const DAVINCI_API_PATH = "https://api.openai.com/v1/engines/text-davinci-002/completions";
@@ -10,12 +11,6 @@ const headers = {
   'Content-Type': 'application/json',
   'Authorization': `Bearer ${apiKey}`
 };
-
-export interface GptMessage {
-  content: string;
-  role: 'assistant' | 'user' | 'system';
-}
-
 
 export const postChatGpt = async (messages: GptMessage[]) : Promise<string> => {
   const payload = {

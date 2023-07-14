@@ -29,9 +29,11 @@ export default class BoundedBox {
   }
 
   static forSpriteTransform(sprite: CSprite, transform: CTransform): BoundedBox {
+    const bottomLeftTile = sprite.worldPosition.add(transform.translation);
+    const topLeftSprite = bottomLeftTile.sub(new Vec2(0, sprite.height));
     return new BoundedBox(
-      transform.translation.x,
-      transform.translation.y,
+      topLeftSprite.x,
+      topLeftSprite.y,
       sprite.width,
       sprite.height,
     );

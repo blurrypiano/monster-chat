@@ -55,9 +55,18 @@ import AgentMovementSystem from '../engine/systems/AgentMovementSystem';
 import CAgent from '../engine/comps/CAgent';
 import CInteractive, { InteractiveAction } from '../engine/comps/CInteractive';
 import PlayerInteractionSystem from '../engine/systems/PlayerInteractionSystem';
-import npcData from '../../backend/data/npcs/NpcData';
+import npcData from '../../data/npcs/NpcData';
 import SpriteLocationSystem from '../engine/systems/SpriteLocationSystem';
-import { CItem, IItemDefinition, itemDefinitons } from '../engine/comps/CInventory';
+import { CInventory, CItem, IItemDefinition, itemDefinitons } from '../engine/comps/CInventory';
+import AgentCommandSystem from '../engine/systems/AgentCommandSystem';
+import PlayerCommandSystem from '../engine/systems/PlayerCommandSystem';
+import Inventory from './Inventory';
+import InventoryState, { SetInventoryState } from '../engine/InventoryState';
+import HealthSystem from '../engine/systems/HealthSystem';
+import CHealth from '../engine/comps/CHealth';
+import ConversationState from '../engine/ConversationState';
+import ConversationContainer from './conversation/ConversationContainer';
+import AppleSystem from '../engine/systems/AppleSystem';
 
 
 const backgroundTilePaths = [
@@ -110,11 +119,11 @@ const startConversation = (gc: GameContext, ecs: EcsManager, eid: number): Inter
   }();
 }
 
-const makeNPC = (ecs: EcsManager, npcDataId: number) => {
-  var npcInfo = npcData[npcDataId]!;
+const makeNPC = (gc: GameContext, ecs: EcsManager, npcId: string) => {
+  var npcInfo = npcData.get(npcId)!;
 
   const entId = ecs.createEnt();
-  ecs.addComponent(entId, new CSprite(
+  const sprite =ecs.addComponent(entId, new CSprite(
     48, 68,
     npcInfo.description,
     npcInfo.leftSprites,
@@ -124,15 +133,15 @@ const makeNPC = (ecs: EcsManager, npcDataId: number) => {
   )); 
   ecs.addComponent(entId, new CClickable());
   const collider = ecs.addComponent(entId, new CGridCollider());
-  collider.gridPos = npcInfo.startingPos;
+  sprite.gridPos = npcInfo.startingPos;
   const transform = ecs.addComponent(entId, new CTransform());
-  transform.translation = collider.gridPos.mul(48);
-  const agent = ecs.addComponent(entId, new CAgent(npcDataId));
+  const agent = ecs.addComponent(entId, new CAgent(npcInfo.npcId, gc.aiChatService));
   ecs.addComponent(entId, new CInteractive(startConversation))
-  // agent.targetGridPos = new Vec2(24, 46);
+  ecs.addComponent(entId, new CInventory());
+  ecs.addComponent(entId, new CHealth());
 }
 
-const makePlayer = (ecs: EcsManager) => {
+const makePlayer = (gc: GameContext, ecs: EcsManager) => {
   const playerEntId = ecs.createEnt();
   const sprite = ecs.addComponent(playerEntId, new CSprite(
     48, 68,
@@ -144,9 +153,15 @@ const makePlayer = (ecs: EcsManager) => {
   )); 
   ecs.addComponent(playerEntId, new CClickable());
   const collider = ecs.addComponent(playerEntId, new CGridCollider());
-  collider.gridPos = new Vec2(21, 34);
+  sprite.gridPos = new Vec2(21, 34);
   const transform = ecs.addComponent(playerEntId, new CTransform());
-  transform.translation = collider.gridPos.mul(48);
+  ecs.addComponent(playerEntId, new CInventory());
+  ecs.addComponent(playerEntId, new CHealth(1000, 1000));
+
+  // players agent
+  var npcInfo = npcData.get("@joshua")!;
+  const agent = ecs.addComponent(playerEntId, new CAgent(npcInfo.npcId, gc.playerCommandService));
+
   return {eid: playerEntId, sprite, transform, collider};
 }
 
@@ -170,11 +185,11 @@ const makeItem = (ecs: EcsManager, itemDef: IItemDefinition, count: number) => {
     itemDef.spriteSheet,
   )); 
   ecs.addComponent(eid, new CClickable());
+
   const gridPos = new Vec2(19, 36);
-  // const collider = ecs.addComponent(eid, new CGridCollider());
-  // collider.gridPos = gridPos;
+  const collider = ecs.addComponent(eid, new CGridCollider());
+  sprite.gridPos = gridPos;
   const transform = ecs.addComponent(eid, new CTransform());
-  transform.translation = gridPos.mul(48);
   ecs.addComponent(eid, new CItem(itemDef, count));
 }
 
@@ -193,64 +208,91 @@ const setupGame = (gameState: GameState) => {
   ecs.createIndex(CAgent, CGridCollider, CTransform, CSprite);
   ecs.createIndex(CInteractive, CGridCollider);
   ecs.createIndex(CSprite, CGridCollider);
+  ecs.createIndex(CSprite, CClickable, CGridCollider, CTransform, CItem);
 
   makeBackground(ecs);
   makeForeground(ecs);
 
-  gc.playerEnt = makePlayer(ecs);
+  gc.playerEnt = makePlayer(gc, ecs);
 
   // make npcs
-  for (var i = 1; i < npcData.length; i++) {
-    makeNPC(ecs, i);
-  }
+  // for (const [npcId,] of npcData.entries()) {
+  //   makeNPC(gc, ecs, npcId);
+  // }
+  makeNPC(gc, ecs, "@henry");
+  makeNPC(gc, ecs, "@jenny");
+  makeNPC(gc, ecs, "@caroline");
 
   // make item
-  makeItem(ecs, itemDefinitons.find(x => x.slug === 'apple')!, 1)
+  makeItem(ecs, itemDefinitons.find(x => x.name === 'Apple')!, 1)
 
   const collisionBoundaries = GridMovementSystem.collisionsFromTileLayer(townCollision);
 
   const backgroundRenderSystem = new BackgroundRenderSystem();
   const foregroundRenderSystem = new ForegroundRenderSystem();
   const spriteRenderSystem = new SpriteRenderSystem();
-  const gridMovementSystem = new GridMovementSystem(collisionBoundaries, 48);
-  const mousePickerSystem = new MousePickerSystem();
-  const playerInteractionSystem = new PlayerInteractionSystem();
+  // const gridMovementSystem = new GridMovementSystem(collisionBoundaries, 48);
+  const mousePickerSystem = new MousePickerSystem(gc.playerInventoryService, gc.conversationService);
+  // const playerInteractionSystem = new PlayerInteractionSystem();
+
+  // todo change to use location service
   const agentMovementSystem = new AgentMovementSystem(collisionBoundaries, 48);
-  const spriteLocationSystem = new SpriteLocationSystem();
+  const spriteLocationSystem = new SpriteLocationSystem(gc.locationService);
+  const appleSystem = new AppleSystem();
+  const agentCommandSystem = new AgentCommandSystem();
+  const healthSystem = new HealthSystem();
+  const playerCommandSystem = new PlayerCommandSystem(
+    gc.playerCommandService, 
+    gc.locationService, 
+    gc.mouse, 
+    gc.input,
+    gc.conversationService,
+  );
 
   const camera = new CTransform();
+  
 
   // we need the order of the constructors to enforce the typing
   // const ents = ecs.getEntsWith(CTransform, CBackgroundTile);
   // const ents = ecs.getEntsWith<[CBackgroundTile, CTransform]>(CTransform, CBackgroundTile);
   let lastUpdateTime = performance.now();
+  agentCommandSystem.init(gc, ecs);
+
+  const setCameraToPlayer = () => {
+    const sprite = gc.playerEnt.sprite;
+    const playerWorldPos = gc.playerEnt.sprite.worldPosition.add(gc.playerEnt.transform.translation);
+    const centerCharOffset = new Vec2(
+      canvas.width * 0.5 - sprite.width * 0.5, 
+      canvas.height * 0.5 - sprite.height * 0.5);
+    camera.translation = playerWorldPos.sub(centerCharOffset);
+  }
+
+  setCameraToPlayer();
 
   /************************************
    ***** Updates the game state *******
    ************************************/
-  const updateGame = () => {
+  const updateGame = async () => {
     const currentTime = performance.now();
     gc.lastFrameDelta = (currentTime - lastUpdateTime) / 1000;
     
-    // const key = gc.input.getLastKeyDown("a", "w", "s", "d");
-    // if (key === "a") transform.translation.x -= 3;
-    // else if (key === "d") transform.translation.x += 3;
-    // else if (key === "w") transform.translation.y -= 3;
-    // else if (key === "s") transform.translation.y += 3;
-
-    const sprite = gc.playerEnt.sprite;
-    const transform = gc.playerEnt.transform;
-    const centerCharOffset = new Vec2(
-      canvas.width * 0.5 - sprite.width * 0.5, 
-      canvas.height * 0.5 - sprite.height * 0.5);
-    camera.translation = transform.translation.sub(centerCharOffset);
+    const key = gc.input.getLastKeyDown("a", "w", "s", "d");
+    if (key === "a") camera.translation.x -= 5;
+    else if (key === "d") camera.translation.x += 5;
+    else if (key === "w") camera.translation.y -= 5;
+    else if (key === "s") camera.translation.y += 5;
+    // setCameraToPlayer();
     gc.viewTransform = camera.mat3();
 
-    playerInteractionSystem.run(gc, ecs);
+    playerCommandSystem.run(gc, ecs);
     mousePickerSystem.run(gc, ecs);
-    gridMovementSystem.run(gc, ecs);
+    healthSystem.run(gc, ecs);
+    // playerInteractionSystem.run(gc, ecs);
+    // gridMovementSystem.run(gc, ecs); commenting out for now since we'll use the agent movement system for the player
+    await agentCommandSystem.runAsync(gc, ecs);
     agentMovementSystem.run(gc, ecs);
     spriteLocationSystem.run(gc, ecs);
+    appleSystem.run(gc, ecs);
 
     lastUpdateTime = currentTime;
   };
@@ -258,7 +300,7 @@ const setupGame = (gameState: GameState) => {
   /**
    * Renders all content in the game
    */
-  const drawGame = () => {
+  const drawGame = async () => {
 
     const ents: EntsWith<[CTransform, CBackgroundTile]> = ecs.getEntsWith(CTransform, CBackgroundTile);
     backgroundRenderSystem.run(gc, ents);
@@ -270,9 +312,9 @@ const setupGame = (gameState: GameState) => {
     requestAnimationFrame(gameLoop);
   };
 
-  const gameLoop = () => {
-    updateGame();
-    drawGame();
+  const gameLoop = async () => {
+    await updateGame();
+    await drawGame();
     gc.frameCount++;
   };
 
@@ -283,6 +325,8 @@ const setupGame = (gameState: GameState) => {
 export interface GameState {
   readonly ecs: EcsManager;
   readonly gc: GameContext;
+  readonly setInventoryContext: SetInventoryState;
+  // todo move services out of game context and instead handle with dependency injection
 }
 
 const Game = () => {
@@ -290,7 +334,14 @@ const Game = () => {
   const [canvasSize, setCanvasSize] = useState(new Vec2(1024, 576));
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+
   const [, setRefreshComponentState] = useState(0);
+  const [, setCanvasLoaded] = useState(false);
+
+  const [inventoryContext, setInventoryContext] = useState<InventoryState>();
+  const [conversationState, setConversationState] = useState<ConversationState>();
+
+  console.log(inventoryContext);
 
   const resizeCanvas = () => {
     const canvasContainer = canvasContainerRef.current;
@@ -307,20 +358,27 @@ const Game = () => {
     window.addEventListener('resize', () => {
       resizeCanvas();
     });
-
-    // resize canvas on first load
-    resizeCanvas();
   }, [])
 
   const handleCanvasLoaded = (canvas: HTMLCanvasElement) => {
-    const newGameState = {
+    const newGameState: GameState = {
       ecs: new EcsManager(),
       // most game state changes don't require a re-render. So instead we
       // provide a function to trigger a refresh manually for use in the few cases it does 
-      gc: new GameContext(canvas, () => setRefreshComponentState(x => x + 1)),
+      gc: new GameContext(
+        canvas, 
+        () => setRefreshComponentState(x => x + 1), 
+        setInventoryContext,
+        setConversationState),
+      setInventoryContext,
     }
-    setupGame(newGameState);
-    setGameState(newGameState);
+
+    setCanvasLoaded(x => {
+      if (x) return true;
+      setupGame(newGameState);
+      setGameState(newGameState);
+      return true;
+    })
 
     // resize canvas after the game has 
     // a bit of time to load
@@ -336,10 +394,11 @@ const Game = () => {
   return (
     <div className="canvas-chat-container">
       <div className="canvas-container" ref={canvasContainerRef}> 
-        <GameCanvas canvasSize={canvasSize} onCanvasLoaded={handleCanvasLoaded}/> 
+        <GameCanvas canvasSize={canvasSize} onCanvasLoaded={handleCanvasLoaded}/>
+        <Inventory context={inventoryContext} />
       </div>
       <div className="chat-container"> 
-        <Conversation  {...conversationProps}/> 
+        <ConversationContainer  {...conversationProps} conversationState={conversationState}/> 
       </div>
     </div>
   );

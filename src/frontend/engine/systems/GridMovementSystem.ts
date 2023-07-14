@@ -1,6 +1,7 @@
 import EcsManager, { EntsWith } from "../../infra/Ecs";
 import { Vec2 } from "../../infra/LinAlg";
 import CGridCollider from "../comps/CGridCollider";
+import CSprite from "../comps/CSprite";
 import GameContext from "../GameContext";
 
 export interface ITileLayer {
@@ -28,22 +29,23 @@ export default class GridMovementSystem {
   }
 
   public run(gc: GameContext, ecs: EcsManager): void {
-    const colliders: EntsWith<[CGridCollider]> = ecs.getEntsWith(CGridCollider);
+    const colliders: EntsWith<[CSprite, CGridCollider]> = ecs.getEntsWith(CSprite, CGridCollider);
     const playerCollider = gc.playerEnt.collider;
+    const playerSprite = gc.playerEnt.sprite;
     let shouldAnimatePlayer = gc.playerEnt.sprite.animFrame % 2 !== 0;
 
     // update player transform if they have a next grid position
-    if (playerCollider.nextGridPos && playerCollider.gridPos) {
-      const delta = playerCollider.nextGridPos.sub(playerCollider.gridPos);
+    if (playerCollider.nextGridPos) {
+      const delta = playerCollider.nextGridPos.sub(playerSprite.gridPos);
       gc.playerEnt.transform.translation.add_(delta.mul(3));
       shouldAnimatePlayer = true;
 
       // if they've reached the location
-      const targetTranslation = playerCollider.nextGridPos.mul(this.tileSize);
+      const targetTranslation = delta.mul(CSprite.TILE_SIZE);
       if (gc.playerEnt.transform.translation.distanceCompare(targetTranslation, 0.1)) {
-        playerCollider.gridPos = playerCollider.nextGridPos;
+        playerSprite.gridPos = playerCollider.nextGridPos;
         playerCollider.nextGridPos = null;
-        gc.playerEnt.transform.translation = playerCollider.gridPos.mul(this.tileSize);
+        gc.playerEnt.transform.translation = new Vec2();
       }
     }
 
@@ -54,18 +56,18 @@ export default class GridMovementSystem {
     let playerTargetPos: Vec2 | null = null;
     const dir = gc.input.getLastKeyDown("a", "w", "s", "d");
 
-    if (dir && playerCollider.gridPos && !playerCollider.nextGridPos) {
+    if (dir && !playerCollider.nextGridPos) {
       if (dir === "a") {
-        playerTargetPos = GridMovementSystem.getNeighbour(playerCollider.gridPos, "left");
+        playerTargetPos = GridMovementSystem.getNeighbour(playerSprite.gridPos, "left");
         gc.playerEnt.sprite.direction = "left";
       } else if (dir === "d") {
-        playerTargetPos = GridMovementSystem.getNeighbour(playerCollider.gridPos, "right");
+        playerTargetPos = GridMovementSystem.getNeighbour(playerSprite.gridPos, "right");
         gc.playerEnt.sprite.direction = "right";
       } else if (dir === "w") {
-        playerTargetPos = GridMovementSystem.getNeighbour(playerCollider.gridPos, "up");
+        playerTargetPos = GridMovementSystem.getNeighbour(playerSprite.gridPos, "up");
         gc.playerEnt.sprite.direction = "up";
       } else if (dir === "s") {
-        playerTargetPos = GridMovementSystem.getNeighbour(playerCollider.gridPos, "down");
+        playerTargetPos = GridMovementSystem.getNeighbour(playerSprite.gridPos, "down");
         gc.playerEnt.sprite.direction = "down";
       }
     }
@@ -97,15 +99,15 @@ export default class GridMovementSystem {
    * @param colliders The other colliders in the scene to check
    * @returns 
    */
-  private isPositionOpen(entId: number, pos: Vec2, colliders: EntsWith<[CGridCollider]>): boolean {
+  private isPositionOpen(entId: number, pos: Vec2, colliders: EntsWith<[CSprite, CGridCollider]>): boolean {
     if (this.staticBoundaries.has(pos.toString())) {
       return false;
     }
 
     // todo, optimize collision detection with a hashset
-    for (const [eid, [collider]] of colliders) {
+    for (const [eid, [sprite, collider]] of colliders) {
       if (entId === eid) continue;
-      if (collider.gridPos?.equals(pos)) return false;
+      if (sprite.gridPos.equals(pos)) return false;
       if (collider.nextGridPos?.equals(pos)) return false;
     }
     return true;

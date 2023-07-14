@@ -5,7 +5,7 @@ import { IConversationModel } from "./IConversationService";
 export type StarSignType = 'aries' | 'taurus' | 'gemini' | 'cancer' | 'leo' | 'virgo' | 'libra' | 'scorpio' | 'sagittarius' | 'capricorn' | 'aquarius' | 'pisces';
 
 export interface INpcModel {
-  readonly id: number;
+  readonly npcId: string;
   readonly name: string;
   readonly description: string;
   readonly age: number;
@@ -13,6 +13,7 @@ export interface INpcModel {
   readonly money: number;
   readonly items: string[];
   readonly personalHistory: string; // basically the characters backstory - static
+  readonly goals: string; 
   readonly personalKnowledge: string; // basically what the character knows - dynamic
 
   // TODO this really shouldn't be here, just doing this for convenience now.
@@ -33,6 +34,6 @@ export interface INpcModel {
 }
 
 export default interface INpcRepo {
-  getById(id: number): Promise<INpcModel>;
+  getById(npcId: string): Promise<INpcModel>;
   update(updated: INpcModel): Promise<INpcModel>;
 }

@@ -37,8 +37,8 @@ export default interface IConversationService {
   // and records once finished, but sends the ongoing stream back to the user.
   // validate what the user said first
 
-  startConversation(npcId: number, envDescription: string, gc: GameContext): Promise<IConversationModel>;
-  sendReply(npcId: number, replyText: string): Promise<IConversationModel>;
-  endConversation(npcId: number, endConversationText: string): Promise<IConversationModel>;
-  getLocation(npcId: number, options: string[]): Promise<string | null>;
+  startConversation(npcId: string, envDescription: string, gc: GameContext): Promise<IConversationModel>;
+  sendReply(npcId: string, replyText: string): Promise<IConversationModel>;
+  endConversation(npcId: string, endConversationText: string): Promise<IConversationModel>;
+  getLocation(npcId: string, options: string[]): Promise<string | null>;
 }

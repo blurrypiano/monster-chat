@@ -5,11 +5,13 @@ import { GameState } from './Game';
 import LoadingIndicator, { LoadingSpinner } from './LoadingIndicator';
 import ConversationService from '../../backend/services/ConversationService';
 import CAgent from '../engine/comps/CAgent';
-import locationData, { locationContext } from '../../backend/data/locationData';
-import LocationService from '../../backend/services/LocationService';
+import locationData, { locationContext } from '../../data/locationData';
+import LocationService from '../engine/services/LocationService';
 import { townLocation } from '../../assets/collision/townLocation';
 import CGridCollider from '../engine/comps/CGridCollider';
-import npcData from '../../backend/data/npcs/NpcData';
+import npcData from '../../data/npcs/NpcData';
+import CSprite from '../engine/comps/CSprite';
+import ConversationState from '../engine/ConversationState';
 
 interface MessageViewModel {
   id: number | string;
@@ -42,10 +44,11 @@ export interface ConversationProps {
   minHeight?: number;
   gameState?: GameState;
   conversationWithEntId?: number;
+  conversationState?: ConversationState;
 }
 
 const conversationService = new ConversationService();
-const locationService = new LocationService(locationContext, townLocation);
+const locationService = new LocationService(locationContext, townLocation, []);
 
 const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => {
   const [messages, setMessages] = useState<MessageViewModel[]>([]);
@@ -57,7 +60,7 @@ const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => 
   const activeAgent = props.conversationWithEntId 
     ? props.gameState?.ecs.getComponent(props.conversationWithEntId, CAgent)
     : null;
-  const activeConversationAgentId = activeAgent?.agentId;
+  const activeConversationAgentId = activeAgent?.agentSlug;
 
   const dimensionStyle: any = {};
   // if (props?.maxHeight) dimensionStyle.maxHeight = props.maxHeight;
@@ -76,9 +79,9 @@ const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => 
         setMessageLoading(true);
         setConversationOverEndState(null);
 
-        const npcLoc = props.gameState?.ecs.getComponent(props.conversationWithEntId!, CGridCollider).gridPos!;
+        const npcLoc = props.gameState?.ecs.getComponent(props.conversationWithEntId!, CSprite).gridPos!;
         const locationInfo = locationService.lookup(npcLoc);
-        const ss = props.gameState?.gc.getSpriteDescriptionsInRegion(props.gameState.ecs, npcLoc, 3) ?? "";
+        const ss = props.gameState?.gc.locationService.getSpriteDescriptionsInRegion(props.gameState.ecs, npcLoc, 3) ?? "";
 
         let envDescription = "";
         if (locationInfo?.description) envDescription += `${locationInfo.description}\n`;
@@ -175,8 +178,6 @@ const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => 
     setMessageLoading(false);
   };
 
-
-
   const handleEnterPressed = (event: any) => {
     if (event.key === 'Enter') {
       handleSendMessage();
@@ -195,7 +196,8 @@ const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => 
           </div>
         ))}
       </div>
-      <div className="conversation__input">
+
+      {/* <div className="conversation__input">
         <textarea
           placeholder="Type a message... press enter to send"
           value={newMessage}
@@ -211,8 +213,8 @@ const Conversation: React.FC<ConversationProps> = (props: ConversationProps) => 
             <button onClick={handleEndConversation}>Leave</button>
           </div>
         }
-       
-      </div>
+      </div> */}
+
     </div>
   );
 };

@@ -20,38 +20,37 @@ export default class AgentMovementSystem {
   }
 
   public run(gc: GameContext, ecs: EcsManager): void {
-    const colliders: EntsWith<[CGridCollider]> = ecs.getEntsWith(CGridCollider);
+    const colliders: EntsWith<[CSprite, CGridCollider]> = ecs.getEntsWith(CSprite, CGridCollider);
     const ents: EntsWith<CompOrder> = ecs.getEntsWith(...constructors);
     for (const ent of ents) {
       this.runForAgent(gc, ent, colliders);
     }
   }
 
-  private runForAgent(gc: GameContext, ent: EntWith<CompOrder>, colliders: EntsWith<[CGridCollider]>) {
+  private runForAgent(gc: GameContext, ent: EntWith<CompOrder>, colliders: EntsWith<[CSprite, CGridCollider]>) {
     const [eid, [, agentCollider, agentTransform, agentSprite]] = ent;
 
     let shouldAnimateAgent = agentSprite.animFrame % 2 !== 0;
 
+    // why when i move the other character can move???
+    
     // update agent transform if they have a next grid position
-    if (agentCollider.nextGridPos && agentCollider.gridPos) {
-      const delta = agentCollider.nextGridPos.sub(agentCollider.gridPos);
+    if (agentCollider.nextGridPos) {
+      const delta = agentCollider.nextGridPos.sub(agentSprite.gridPos);
       agentTransform.translation.add_(delta.mul(3));
       shouldAnimateAgent = true;
 
       // if they've reached the location
-      const targetTranslation = agentCollider.nextGridPos.mul(this.tileSize);
+      const targetTranslation = delta.mul(CSprite.TILE_SIZE);
       if (agentTransform.translation.distanceCompare(targetTranslation, 0.1)) {
-        agentCollider.gridPos = agentCollider.nextGridPos;
+        agentSprite.gridPos = agentCollider.nextGridPos;
         agentCollider.nextGridPos = null;
-        agentTransform.translation = agentCollider.gridPos.mul(this.tileSize);
+        agentTransform.translation = new Vec2();
       }
     }
 
     // agent cant move if they are in a conversation
     if (gc.conversationWithEntId === eid) return;
-
-    // run pathfinding if agent has target but no path
-    this.maybeUpdatePathFinding(ent);
 
     // try updating nextGridPos to an open position along the path
     this.maybeUpdateNextPosition(ent, colliders);
@@ -63,45 +62,21 @@ export default class AgentMovementSystem {
     }
   }
 
-  private maybeUpdatePathFinding(ent: EntWith<CompOrder>) {
+  private maybeUpdateNextPosition(ent: EntWith<CompOrder>, colliders: EntsWith<[CSprite, CGridCollider]>) {
     const [eid, [agent, agentCollider, , agentSprite]] = ent;
-    if (agent.movementPath) return; // agent already has a movement path
-    if (!agentCollider.gridPos) return; // if agent not in grid return
-    if (agentCollider.nextGridPos) return; // if agent already has next position return
-    if (!agent.targetGridPos) return;
-    if (agentCollider.gridPos.equals(agent.targetGridPos)) return;
-
-
-    // at this point, the agent has a target position, but has no path to get there
-    // TODO get other sprites and include in pathing?
-    const path = findShortestPath(agentCollider.gridPos, agent.targetGridPos, this.staticBoundaries);
-    if (path) {
-      console.log("Found shortest path");
-      agent.movementPath = path;
-      agent.movementPathIndex = 0;
-    } else {
-      console.log("Could not find path");
-      agent.targetGridPos = null; // clear target grid position to avoid repeating calculation
-    }
-
-  }
-
-  private maybeUpdateNextPosition(ent: EntWith<CompOrder>, colliders: EntsWith<[CGridCollider]>) {
-    const [eid, [agent, agentCollider, , agentSprite]] = ent;
-    if (!agentCollider.gridPos) return; // if agent not in grid return
     if (agentCollider.nextGridPos) return; // if agent already has next position return
 
     // if agent is at target position then update to standby
-    if (agent.targetGridPos && agentCollider.gridPos.equals(agent.targetGridPos)) {
-      this.stopAgentMovement(agent);
+    if (agent.targetGridPos && agentSprite.gridPos.equals(agent.targetGridPos)) {
+      agent.resetAgentMovement();
       return;
     }
 
     // check if agent is at current path position, if so then update to next position in path
     const currentPathPos = agent.currentPathPos;
-    if (currentPathPos && agentCollider.gridPos.equals(currentPathPos)) {
+    if (currentPathPos && agentSprite.gridPos.equals(currentPathPos)) {
       agent.movementPathIndex! += 1;
-      const direction = this.getDirectionToFace(agentCollider.gridPos, agent.currentPathPos);
+      const direction = this.getDirectionToFace(agentSprite.gridPos, agent.currentPathPos);
       if (direction) {
         agentSprite.direction = direction;
       }
@@ -112,14 +87,6 @@ export default class AgentMovementSystem {
     if (agentNextPathPos && this.isPositionOpen(eid, agentNextPathPos, colliders)) {
       agentCollider.nextGridPos = agentNextPathPos;
     }
-  }
-
-  private stopAgentMovement(agent: CAgent) {
-    // if (agent.currentAction !== "move") return;
-    agent.movementPath = null;
-    agent.movementPathIndex = -1;
-    agent.targetGridPos = null;
-    agent.currentAction = "standby";
   }
 
   private getDirectionToFace(currentPos: Vec2, targetPos: Vec2 | null): MoveDirection | null {
@@ -141,13 +108,13 @@ export default class AgentMovementSystem {
    * @param colliders The other colliders in the scene to check
    * @returns 
    */
-  private isPositionOpen(entId: number, pos: Vec2, colliders: EntsWith<[CGridCollider]>): boolean {
+  private isPositionOpen(entId: number, pos: Vec2, colliders: EntsWith<[CSprite, CGridCollider]>): boolean {
     if (this.staticBoundaries.has(pos.toString())) {
       return false;
     }
-    for (const [eid, [collider]] of colliders) {
+    for (const [eid, [sprites, collider]] of colliders) {
       if (entId === eid) continue;
-      if (collider.gridPos?.equals(pos)) return false;
+      if (sprites.gridPos.equals(pos)) return false;
       if (collider.nextGridPos?.equals(pos)) return false;
     }
     return true;

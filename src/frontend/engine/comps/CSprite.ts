@@ -16,7 +16,6 @@ export class SpriteSheet {
   readonly spriteWidth: number;
   readonly spriteHeight: number;
   readonly offset: Vec2;
-  public gridPos: Vec2 | null = null;
 
   public img: HTMLImageElement | null = null;
   private _isLoaded: boolean = false;
@@ -56,6 +55,7 @@ export class SpriteSheet {
 }
 
 export default class CSprite implements IComponent {
+  public static readonly TILE_SIZE = 48;
   public gridPos = new Vec2();
   public animFrame = 0;
   public activeSheet: SpriteSheet;
@@ -128,5 +128,10 @@ export default class CSprite implements IComponent {
 
   public getImage() {
     return this.activeSheet.img;
+  }
+
+  public get worldPosition() {
+    const anchor = new Vec2(0, 1); // use bottom left corner as anchor
+    return this.gridPos.add(anchor).mul(CSprite.TILE_SIZE);
   }
 }

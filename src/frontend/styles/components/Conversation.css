@@ -6,7 +6,7 @@
   background-color: #36393f;
   color: #fff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  align-items: center; /* center child elements vertically */
+  align-items: stretch; /* center child elements vertically */
   justify-content: end;
 }
 
@@ -48,7 +48,7 @@
 
 .conversation__bubble--system {
   align-self: center;
-  color: lightcoral
+  color: lightgray
 }
 
 .conversation__input {

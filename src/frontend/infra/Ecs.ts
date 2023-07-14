@@ -45,6 +45,7 @@ class Index<T extends IComponent[]> {
       this.addEnt(eid, manager);
       return true;
     }
+    this.removeEnt(eid);
     return false;
   }
 }
@@ -73,7 +74,7 @@ export default class EcsManager implements IEcsManager {
   private readonly componentStores: Map<string, Map<EntIdType, IComponent>>;
   private readonly indexes: Map<string, Index<any[]>>;
   private readonly entities: Set<EntIdType>;
-  private nextEntId: number = 0;
+  private nextEntId: number = 1; // start are 1 so that can check truthiness correctly
 
   constructor() {
     this.componentStores = new Map<string, Map<EntIdType, IComponent>>();
@@ -92,6 +93,7 @@ export default class EcsManager implements IEcsManager {
     this.componentStores.forEach((store) => {
       store.delete(eid);
     })
+    this.updateIndexes(eid);
     return wasDeleted;
   }
 
@@ -264,16 +266,16 @@ export default class EcsManager implements IEcsManager {
     return store;
   }
 
-  private updateIndexes(entity: EntIdType): void {
+  private updateIndexes(eid: EntIdType): void {
     this.indexes.forEach((index) => {
-      this.updateIndex(index, entity);
+      this.updateIndex(index, eid);
     });
   }
 
   // overloaded to support 1 or all
-  private updateIndex(index: Index<any>, entId?: EntIdType): void {
-    if (entId) {
-      index.addEntIfMatch(entId, this);
+  private updateIndex(index: Index<any>, eid?: EntIdType): void {
+    if (eid) {
+      index.addEntIfMatch(eid, this);
       return;
     }
     for (const eid of this.entities) {

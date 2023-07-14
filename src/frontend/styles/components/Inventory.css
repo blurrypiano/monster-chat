@@ -1,0 +1,108 @@
+.inventory-container {
+  position: relative;
+  height: 100%;
+}
+
+.inventory {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: start;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding-left: 8px;
+  padding-right: 8px;
+  box-sizing: border-box;
+}
+
+/* imgs  */
+.inventory-item {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.inventory-item-text {
+  width: 100%;
+  max-width: 60px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.0rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 0px;
+  color: white;
+  cursor: pointer;
+  word-wrap: break-word;
+  /* border: 2px solid white; */
+  /* border-radius: 5px; */
+  margin-bottom: 6px;
+}
+
+.inventory-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 6px 0;
+  color: white;
+  border-bottom: 2px solid white;
+  margin-bottom: 6px;
+}
+
+/* add this block for tooltip styling */
+.inventory-item-text:hover {
+  position: relative;
+}
+
+.inventory-item-text:hover::after {
+  content: attr(data-tooltip); /* use data-tooltip attribute */
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 1rem;
+  padding: 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.inventory-options {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 2px solid white;
+  border-radius: 5px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.inventory-option:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.inventory-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 2px solid white;
+}
+
+.inventory-option:last-child {
+  border-bottom: none;
+}
